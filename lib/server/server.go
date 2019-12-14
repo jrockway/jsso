@@ -30,6 +30,7 @@ import (
 	jprom "github.com/uber/jaeger-lib/metrics/prometheus"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	channelz "google.golang.org/grpc/channelz/service"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
@@ -279,6 +280,7 @@ func listenAndServe(stopCh chan string) error {
 	)
 	healthServer := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	channelz.RegisterChannelzServiceToServer(grpcServer)
 	for _, h := range serviceHooks {
 		if h != nil {
 			h(grpcServer)
