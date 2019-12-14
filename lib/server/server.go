@@ -1,0 +1,356 @@
+// Package server initalizes an RPC server app, providing gRPC, HTTP, and debug HTTP servers, Jaeger
+// tracing, Zap logging, and Prometheus monitoring.
+package server
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"net"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"strings"
+	"time"
+
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	"github.com/jessevdk/go-flags"
+	"github.com/opentracing-contrib/go-stdlib/nethttp"
+	"github.com/opentracing/opentracing-go"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	jaegercfg "github.com/uber/jaeger-client-go/config"
+	jaegerzap "github.com/uber/jaeger-client-go/log/zap"
+	jprom "github.com/uber/jaeger-lib/metrics/prometheus"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/reflection"
+)
+
+var (
+	AppName       = "server"
+	flagParser    = flags.NewParser(nil, flags.HelpFlag|flags.PassDoubleDash)
+	logOpts       = &logOptions{}
+	logLevel      zap.AtomicLevel
+	listenOpts    = &listenOptions{}
+	restoreLogger = func() {}
+	flushTraces   io.Closer
+	httpHandler   http.Handler
+	serviceHooks  []func(s *grpc.Server)
+)
+
+type logOptions struct {
+	LogLevel       string `long:"log_level" description:"zap level to log at" default:"debug" env:"LOG_LEVEL"`
+	DevelopmentLog bool   `long:"pretty_logs" description:"use the nicer-to-look at development log" env:"PRETTY_LOGS"`
+}
+
+type listenOptions struct {
+	HTTPAddress         string        `long:"http_address" description:"address to listen for http requests on" default:":8080" env:"HTTP_ADDRESS"`
+	DebugAddress        string        `long:"debug_address" description:"address to listen for debug http requests on" default:":8081" env:"DEBUG_ADDRESS"`
+	GRPCAddress         string        `long:"grpc_address" description:"address to listen for grpc requests on" default:":9000" env:"GRPC_ADDRESS"`
+	ShutdownGracePeriod time.Duration `long:"shutdown_grace_period" description:"how long to wait on draining connections before exiting" default:"30s" env:"SHUTDOWN_GRACE_PERIOD"`
+}
+
+// AddFlagGroup lets you add your own flags to be parsed with the server-level flags.
+func AddFlagGroup(name string, data interface{}) {
+	flagParser.AddGroup(name, "", data)
+}
+
+// Setup sets up the necessary global configuration for your server app.  It parses
+// flags/environment variables, and initializes logging, tracing, etc.
+//
+// If there is a problem, we kill the program.
+func Setup() {
+	flagParser.AddGroup("Addresses", "", listenOpts)
+	flagParser.AddGroup("Logging", "", logOpts)
+	if _, err := flagParser.Parse(); err != nil {
+		if ferr, ok := err.(*flags.Error); ok && ferr.Type == flags.ErrHelp {
+			fmt.Fprintf(os.Stderr, ferr.Message)
+			os.Exit(2)
+		}
+		fmt.Fprintf(os.Stderr, "flag parsing: %v\n", err)
+		os.Exit(3)
+	}
+
+	if err := setup(); err != nil {
+		zap.L().Fatal("error initializing app", zap.Error(err))
+	}
+}
+
+func setup() error {
+	if err := setupLogging(); err != nil {
+		return fmt.Errorf("setup logging: %w", err)
+	}
+	if err := setupTracing(); err != nil {
+		return fmt.Errorf("setup tracing: %w", err)
+	}
+	setupDebug()
+	return nil
+}
+
+func setupLogging() error {
+	lcfg := zap.NewProductionConfig()
+	if logOpts.DevelopmentLog {
+		lcfg = zap.NewDevelopmentConfig()
+	}
+	logger, err := lcfg.Build()
+	if err != nil {
+		return fmt.Errorf("init zap: %w", err)
+	}
+	restoreLogger = zap.ReplaceGlobals(logger)
+	zap.RedirectStdLog(logger)
+	logLevel = lcfg.Level
+	if err := logLevel.UnmarshalText([]byte(logOpts.LogLevel)); err != nil {
+		return fmt.Errorf("set log level: %w", err)
+	}
+	return nil
+}
+
+func setupTracing() error {
+	jcfg, err := jaegercfg.FromEnv()
+	if err != nil {
+		return fmt.Errorf("config: %w", err)
+	}
+	if jcfg.ServiceName == "" {
+		jcfg.ServiceName = AppName
+	}
+	options := []jaegercfg.Option{
+		jaegercfg.Logger(jaegerzap.NewLogger(zap.L().Named("jaeger"))),
+		jaegercfg.Metrics(jprom.New()),
+	}
+	tracer, closer, err := jcfg.NewTracer(options...)
+	if err != nil {
+		return fmt.Errorf("tracer: %v", err)
+	}
+	opentracing.SetGlobalTracer(tracer)
+	flushTraces = closer
+	return nil
+}
+
+func setupDebug() error {
+	http.Handle("/metrics", promhttp.Handler())
+	http.Handle("/zap", logLevel)
+	return nil
+}
+
+// AddService registers a gRPC server to be run by the RPC server.  It is intended to be used like:
+//
+//   d.AddService(func (s *grpc.Server) { my_proto.RegisterMyServer(s, myImplementation) })
+func AddService(cb func(s *grpc.Server)) {
+	serviceHooks = append(serviceHooks, cb)
+}
+
+// SetHTTPHandler registers an HTTP handler to serve all non-debug HTTP requests.  You may only
+// register a single handler; to serve multiple URLs, use an http.ServeMux.
+func SetHTTPHandler(h http.Handler) {
+	if httpHandler != nil {
+		panic("attempt to add an http handler with one already registered")
+	}
+	httpHandler = h
+}
+
+// isNotMonitoring returns true if the request is not monitoring.  (This is to suppress tracing of
+// kubelet health checks and prometheus metric scrapes.)
+func isNotMonitoring(req *http.Request) bool {
+	if strings.HasPrefix(req.Header.Get("User-Agent"), "kube-probe/") {
+		return false
+	}
+	if req.URL != nil && req.URL.Path == "/metrics" {
+		return false
+	}
+	return true
+}
+
+func notHealthCheck(_ opentracing.SpanContext, method string, _, _ interface{}) bool {
+	return method != "/grpc.health.v1.Health/Check"
+}
+
+var (
+	httpInFlightGauge = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "http_in_flight",
+			Help: "A gauge of requests currently being served by the wrapped handler.",
+		},
+		[]string{"handler"},
+	)
+
+	httpCounter = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_requests_total",
+			Help: "A counter for requests to the wrapped handler.",
+		},
+		[]string{"handler", "code", "method"},
+	)
+
+	httpDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "http_request_duration_seconds",
+			Help:    "A histogram of latencies for requests.",
+			Buckets: []float64{0.0005, 0.001, 0.01, 0.1, 0.2, 0.4, 0.8, 1, 1.5, 2, 3, 5, 10, 30, 60, 120, 1200, 3600},
+		},
+		[]string{"handler", "method"},
+	)
+
+	httpRequestSize = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "http_request_size_bytes",
+			Help:    "A histogram of requests sizes for requests.",
+			Buckets: prometheus.ExponentialBuckets(1, 2, 32),
+		},
+		[]string{"handler"},
+	)
+
+	httpResponseSize = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "http_response_size_bytes",
+			Help:    "A histogram of response sizes for requests.",
+			Buckets: prometheus.ExponentialBuckets(1, 2, 32),
+		},
+		[]string{"handler"},
+	)
+)
+
+func instrumentHandler(name string, handler http.Handler) http.Handler {
+	l := prometheus.Labels{"handler": name}
+	return promhttp.InstrumentHandlerInFlight(httpInFlightGauge.With(l),
+		promhttp.InstrumentHandlerDuration(httpDuration.MustCurryWith(l),
+			promhttp.InstrumentHandlerCounter(httpCounter.MustCurryWith(l),
+				promhttp.InstrumentHandlerRequestSize(httpRequestSize.MustCurryWith(l),
+					promhttp.InstrumentHandlerResponseSize(httpResponseSize.MustCurryWith(l),
+						handler,
+					),
+				),
+			),
+		),
+	)
+}
+
+// listenAndSereve starts the server and runs until stopped.
+func listenAndServe(stopCh chan string) error {
+	debugListener, err := net.Listen("tcp", listenOpts.DebugAddress)
+	if err != nil {
+		return fmt.Errorf("listen on debug port: %w", err)
+	}
+	defer debugListener.Close()
+
+	grpcListener, err := net.Listen("tcp", listenOpts.GRPCAddress)
+	if err != nil {
+		return fmt.Errorf("listen on grpc port: %w", err)
+	}
+	defer grpcListener.Close()
+
+	httpListener, err := net.Listen("tcp", listenOpts.HTTPAddress)
+	if err != nil {
+		return fmt.Errorf("listen on http port: %w", err)
+	}
+	defer httpListener.Close()
+
+	doneCh := make(chan error)
+	debugServer := &http.Server{
+		Handler: instrumentHandler("debug", nethttp.Middleware(opentracing.GlobalTracer(), http.DefaultServeMux, nethttp.MWSpanFilter(isNotMonitoring))),
+	}
+
+	var httpServer *http.Server
+	if httpHandler != nil {
+		// I'd rather blow up with a null pointer dereference than serve the debug mux on
+		// the main port, which is what happens if httpHandler is nil.
+		httpServer = &http.Server{
+			Handler: instrumentHandler("http", nethttp.Middleware(opentracing.GlobalTracer(), httpHandler)),
+		}
+	}
+
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer(), otgrpc.IncludingSpans(notHealthCheck)),
+			grpc_prometheus.UnaryServerInterceptor,
+		)),
+		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
+			otgrpc.OpenTracingStreamServerInterceptor(opentracing.GlobalTracer(), otgrpc.IncludingSpans(notHealthCheck)),
+			grpc_prometheus.StreamServerInterceptor,
+		)),
+	)
+	healthServer := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	for _, h := range serviceHooks {
+		if h != nil {
+			h(grpcServer)
+		}
+	}
+	reflection.Register(grpcServer)
+
+	var servers int
+	servers++
+	go func() {
+		zap.L().Info("listening", zap.String("server", "debug"), zap.String("addr", listenOpts.DebugAddress))
+		doneCh <- fmt.Errorf("debug server: %v", debugServer.Serve(debugListener))
+	}()
+	servers++
+	go func() {
+		zap.L().Info("listening", zap.String("server", "grpc"), zap.String("addr", listenOpts.GRPCAddress))
+		doneCh <- fmt.Errorf("grpc server: %w", grpcServer.Serve(grpcListener))
+	}()
+	if httpHandler != nil {
+		servers++
+		go func() {
+			zap.L().Info("listening", zap.String("server", "http"), zap.String("addr", listenOpts.HTTPAddress))
+			doneCh <- fmt.Errorf("http server: %w", httpServer.Serve(httpListener))
+		}()
+	}
+
+	select {
+	case reason := <-stopCh:
+		zap.L().Info("shutdown requested", zap.String("reason", reason), zap.Int("servers_remaining", servers))
+		ioutil.WriteFile("/dev/termination-log", []byte("requested shutdown"), 0666)
+	case err := <-doneCh:
+		servers--
+		zap.L().Error("server unexpectedly exited", zap.Error(err), zap.Int("servers_remaining", servers))
+		ioutil.WriteFile("/dev/termination-log", []byte(fmt.Sprintf("server unexpectedly died: %v", err)), 0666)
+	}
+
+	tctx, c := context.WithTimeout(context.Background(), listenOpts.ShutdownGracePeriod)
+	healthServer.Shutdown()
+	go grpcServer.GracefulStop()
+	go debugServer.Shutdown(tctx)
+	if httpServer != nil {
+		go httpServer.Shutdown(tctx)
+	}
+
+	for ; servers > 0; servers-- {
+		select {
+		case <-tctx.Done():
+			zap.L().Error("context expired during shutdown", zap.Error(err), zap.Int("servers_remaining", servers))
+		case err := <-doneCh:
+			zap.L().Info("server exited during shutdown", zap.Error(err), zap.Int("servers_remaining", servers))
+		}
+	}
+	grpcServer.Stop()
+	c()
+	ioutil.WriteFile("/dev/termination-log", []byte("clean shutdown"), 0666)
+	return nil
+}
+
+// ListenAndServe starts all servers.  SIGTERM or SIGINT will gracefully drain connections.  When
+// all servers have exited, we exit the program.
+func ListenAndServe() {
+	stopCh := make(chan string)
+	http.HandleFunc("/quitquitquit", func(w http.ResponseWriter, req *http.Request) {
+		stopCh <- "quitquitquit"
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("bye"))
+	})
+
+	listenAndServe(stopCh)
+
+	if flushTraces != nil {
+		flushTraces.Close()
+	}
+	zap.L().Sync()
+	restoreLogger()
+	os.Exit(0)
+}
