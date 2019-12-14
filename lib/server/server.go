@@ -11,7 +11,9 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -283,6 +285,7 @@ func listenAndServe(stopCh chan string) error {
 		}
 	}
 	reflection.Register(grpcServer)
+	defer grpcServer.Stop()
 
 	var servers int
 	servers++
@@ -293,27 +296,26 @@ func listenAndServe(stopCh chan string) error {
 	servers++
 	go func() {
 		zap.L().Info("listening", zap.String("server", "grpc"), zap.String("addr", listenOpts.GRPCAddress))
-		doneCh <- fmt.Errorf("grpc server: %w", grpcServer.Serve(grpcListener))
+		doneCh <- fmt.Errorf("grpc server: %v", grpcServer.Serve(grpcListener))
 	}()
 	if httpHandler != nil {
 		servers++
 		go func() {
 			zap.L().Info("listening", zap.String("server", "http"), zap.String("addr", listenOpts.HTTPAddress))
-			doneCh <- fmt.Errorf("http server: %w", httpServer.Serve(httpListener))
+			doneCh <- fmt.Errorf("http server: %v", httpServer.Serve(httpListener))
 		}()
 	}
 
 	select {
 	case reason := <-stopCh:
 		zap.L().Info("shutdown requested", zap.String("reason", reason), zap.Int("servers_remaining", servers))
-		ioutil.WriteFile("/dev/termination-log", []byte("requested shutdown"), 0666)
 	case err := <-doneCh:
 		servers--
 		zap.L().Error("server unexpectedly exited", zap.Error(err), zap.Int("servers_remaining", servers))
-		ioutil.WriteFile("/dev/termination-log", []byte(fmt.Sprintf("server unexpectedly died: %v", err)), 0666)
 	}
 
 	tctx, c := context.WithTimeout(context.Background(), listenOpts.ShutdownGracePeriod)
+	defer c()
 	healthServer.Shutdown()
 	go grpcServer.GracefulStop()
 	go debugServer.Shutdown(tctx)
@@ -321,17 +323,17 @@ func listenAndServe(stopCh chan string) error {
 		go httpServer.Shutdown(tctx)
 	}
 
-	for ; servers > 0; servers-- {
+	for servers > 0 {
 		select {
 		case <-tctx.Done():
 			zap.L().Error("context expired during shutdown", zap.Error(err), zap.Int("servers_remaining", servers))
+			return fmt.Errorf("context expired during shutdown: %w", tctx.Err())
 		case err := <-doneCh:
+			servers--
 			zap.L().Info("server exited during shutdown", zap.Error(err), zap.Int("servers_remaining", servers))
 		}
 	}
-	grpcServer.Stop()
-	c()
-	ioutil.WriteFile("/dev/termination-log", []byte("clean shutdown"), 0666)
+	zap.L().Info("all servers exited")
 	return nil
 }
 
@@ -345,7 +347,24 @@ func ListenAndServe() {
 		w.Write([]byte("bye"))
 	})
 
-	listenAndServe(stopCh)
+	sigCh := make(chan os.Signal)
+	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
+	go func() {
+		sig := <-sigCh
+		name := sig.String()
+		zap.L().Info("got signal", zap.String("signal", name))
+		signal.Stop(sigCh)
+		stopCh <- name
+	}()
+
+	err := listenAndServe(stopCh)
+	signal.Stop(sigCh)
+	if err != nil {
+		zap.L().Info("server errored", zap.Error(err))
+		ioutil.WriteFile("/dev/termination-log", []byte(fmt.Sprintf("error during shutdown: %v", err)), 0666)
+	} else {
+		ioutil.WriteFile("/dev/termination-log", []byte("clean shutdown"), 0666)
+	}
 
 	if flushTraces != nil {
 		flushTraces.Close()
