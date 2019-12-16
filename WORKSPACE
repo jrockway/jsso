@@ -65,3 +65,24 @@ http_archive(
     strip_prefix = "buildtools",
     url = "https://github.com/bazelbuild/buildtools/archive/0.29.0.zip",
 )
+
+http_archive(
+    name = "io_bazel_rules_docker",
+    sha256 = "14ac30773fdb393ddec90e158c9ec7ebb3f8a4fd533ec2abbfd8789ad81a284b",
+    strip_prefix = "rules_docker-0.12.1",
+    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.12.1/rules_docker-v0.12.1.tar.gz"],
+)
+
+load(
+    "@io_bazel_rules_docker//repositories:repositories.bzl",
+    container_repositories = "repositories",
+)
+
+container_repositories()
+
+load(
+    "@io_bazel_rules_docker//go:image.bzl",
+    _go_image_repos = "repositories",
+)
+
+_go_image_repos()
