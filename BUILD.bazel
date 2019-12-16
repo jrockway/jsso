@@ -1,0 +1,6 @@
+load("@bazel_gazelle//:def.bzl", "gazelle")
+
+# gazelle:prefix github.com/jrockway/jsso
+gazelle(name = "gazelle")
+
+# gazelle update-repos -from_file=go.mod -to_macro=repositories.bzl%go_repositories -prune
