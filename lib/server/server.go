@@ -1,4 +1,4 @@
-// Package server initalizes an RPC server app, providing gRPC, HTTP, and debug HTTP servers, Jaeger
+// Package server initializes an RPC server app, providing gRPC, HTTP, and debug HTTP servers, Jaeger
 // tracing, Zap logging, and Prometheus monitoring.
 package server
 
@@ -9,7 +9,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
-	_ "net/http/pprof"
+	_ "net/http/pprof" // nolint
 	"os"
 	"os/signal"
 	"strings"
@@ -61,8 +61,9 @@ type listenOptions struct {
 }
 
 // AddFlagGroup lets you add your own flags to be parsed with the server-level flags.
-func AddFlagGroup(name string, data interface{}) {
-	flagParser.AddGroup(name, "", data)
+func AddFlagGroup(name string, data interface{}) error {
+	_, err := flagParser.AddGroup(name, "", data)
+	return fmt.Errorf("add flag group %q: %w", name, err)
 }
 
 // Setup sets up the necessary global configuration for your server app.  It parses
@@ -70,8 +71,12 @@ func AddFlagGroup(name string, data interface{}) {
 //
 // If there is a problem, we kill the program.
 func Setup() {
-	flagParser.AddGroup("Addresses", "", listenOpts)
-	flagParser.AddGroup("Logging", "", logOpts)
+	if _, err := flagParser.AddGroup("Addresses", "", listenOpts); err != nil {
+		panic(err)
+	}
+	if _, err := flagParser.AddGroup("Logging", "", logOpts); err != nil {
+		panic(err)
+	}
 	if _, err := flagParser.Parse(); err != nil {
 		if ferr, ok := err.(*flags.Error); ok && ferr.Type == flags.ErrHelp {
 			fmt.Fprintf(os.Stderr, ferr.Message)
@@ -136,10 +141,9 @@ func setupTracing() error {
 	return nil
 }
 
-func setupDebug() error {
+func setupDebug() {
 	http.Handle("/metrics", promhttp.Handler())
 	http.Handle("/zap", logLevel)
-	return nil
 }
 
 // AddService registers a gRPC server to be run by the RPC server.  It is intended to be used like:
@@ -311,18 +315,18 @@ func listenAndServe(stopCh chan string) error {
 	select {
 	case reason := <-stopCh:
 		zap.L().Info("shutdown requested", zap.String("reason", reason), zap.Int("servers_remaining", servers))
-	case err := <-doneCh:
+	case doneErr := <-doneCh:
 		servers--
-		zap.L().Error("server unexpectedly exited", zap.Error(err), zap.Int("servers_remaining", servers))
+		zap.L().Error("server unexpectedly exited", zap.Error(doneErr), zap.Int("servers_remaining", servers))
 	}
 
 	tctx, c := context.WithTimeout(context.Background(), listenOpts.ShutdownGracePeriod)
 	defer c()
-	healthServer.Shutdown()
-	go grpcServer.GracefulStop()
-	go debugServer.Shutdown(tctx)
+	healthServer.Shutdown()       // nolint
+	go grpcServer.GracefulStop()  // nolint
+	go debugServer.Shutdown(tctx) // nolint
 	if httpServer != nil {
-		go httpServer.Shutdown(tctx)
+		go httpServer.Shutdown(tctx) // nolint
 	}
 
 	for servers > 0 {
@@ -346,7 +350,7 @@ func ListenAndServe() {
 	http.HandleFunc("/quitquitquit", func(w http.ResponseWriter, req *http.Request) {
 		stopCh <- "quitquitquit"
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("bye"))
+		w.Write([]byte("bye")) // nolint
 	})
 
 	sigCh := make(chan os.Signal)
@@ -359,14 +363,16 @@ func ListenAndServe() {
 		stopCh <- name
 	}()
 
+	termMsg := []byte("clean shutdown")
 	err := listenAndServe(stopCh)
 	signal.Stop(sigCh)
 	if err != nil {
 		zap.L().Info("server errored", zap.Error(err))
-		ioutil.WriteFile("/dev/termination-log", []byte(fmt.Sprintf("error during shutdown: %v", err)), 0666)
-	} else {
-		ioutil.WriteFile("/dev/termination-log", []byte("clean shutdown"), 0666)
+		termMsg = []byte(fmt.Sprintf("error during shutdown: %v", err))
 	}
+
+	// nolint: errcheck
+	ioutil.WriteFile("/dev/termination-log", termMsg, 0666)
 
 	if flushTraces != nil {
 		flushTraces.Close()
