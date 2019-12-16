@@ -4,8 +4,6 @@ load("@com_github_atlassian_bazel_tools//golangcilint:def.bzl", "golangcilint")
 # gazelle:prefix github.com/jrockway/jsso
 gazelle(name = "gazelle")
 
-# gazelle update-repos -from_file=go.mod -to_macro=repositories.bzl%go_repositories -prune
-
 golangcilint(
     name = "golint",
     config = "//:.golangci.yaml",
