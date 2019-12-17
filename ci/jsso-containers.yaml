@@ -1,0 +1,31 @@
+resources:
+    - name: jsso-git
+      type: git
+      icon: github-circle
+      # webhook_token: ((webhook.token))
+      source:
+          uri: https://github.com/jrockway/jsso
+
+    - name: envoy-plugin-image
+      type: registry-image
+      icon: docker
+      source:
+          repository: registry.jrock.us/envoy
+          username: ((registry.username))
+          password: ((registry.password))
+
+jobs:
+    - name: envoy-plugin
+      public: true
+      plan:
+          - get: jsso-git
+            trigger: true
+          - task: build
+            privileged: true
+            file: jsso/ci/build-container.task.yaml
+            vars:
+                code: jsso-git
+                target: //cmd/envoy-plugin:envoy-plugin-image.tar
+          - put: envoy-plugin-image
+            params:
+                image: bazel-bin/cmd/envoy-plugin/envoy-plugin-image.tar

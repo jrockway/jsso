@@ -1,0 +1,23 @@
+platform: linux
+image_resource:
+    type: registry-image
+    source:
+        repository: l.gcr.io/google/bazel
+inputs:
+    - name: ((code))
+run:
+    dir: ((code))
+    path: bazel
+    args:
+        - "--output_user_root=../build-output"
+        - "build"
+        - "--disk_cache=../disk-cache"
+        - "--repository_cache=../repository-cache"
+        - "--"
+        - ((target))
+caches:
+    - path: disk-cache
+    - path: repository-cache
+outputs:
+    - name: bazel-bin
+      path: ((code))/bazel-bin
