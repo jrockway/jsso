@@ -9,7 +9,8 @@ run:
     dir: ((code))
     path: bazel
     args:
-        - "--output_user_root=../build-output"
+        - "--output_user_root=../build-root"
+        - "--output_base=../build-output"
         - "build"
         - "--disk_cache=../disk-cache"
         - "--repository_cache=../repository-cache"
@@ -19,5 +20,5 @@ caches:
     - path: disk-cache
     - path: repository-cache
 outputs:
-    - name: bazel-bin
-      path: ((code))/bazel-bin
+    - name: build-output
+      path: build-output

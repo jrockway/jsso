@@ -10,7 +10,7 @@ resources:
       type: registry-image
       icon: docker
       source:
-          repository: registry.jrock.us/envoy
+          repository: registry.jrock.us/jsso-envoy-plugin
           username: ((registry.username))
           password: ((registry.password))
 
@@ -22,10 +22,10 @@ jobs:
             trigger: true
           - task: build
             privileged: true
-            file: jsso/ci/build-container.task.yaml
+            file: jsso-git/ci/build-container.task.yaml
             vars:
                 code: jsso-git
                 target: //cmd/envoy-plugin:envoy-plugin-image.tar
           - put: envoy-plugin-image
             params:
-                image: bazel-bin/cmd/envoy-plugin/envoy-plugin-image.tar
+                image: build-output/execroot/jsso/bazel-out/k8-fastbuild/bin/cmd/envoy-plugin/envoy-plugin-image.tar
