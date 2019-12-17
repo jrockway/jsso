@@ -36,16 +36,27 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+// Info is provided to an (optional) callback after the server has started.  It is mostly
+// useful for tests, but is exposed in case you want to do something after the server has started
+// serving.
+type Info struct {
+	HTTPAddress, DebugAddress, GRPCAddress string
+}
+
 var (
-	AppName       = "server"
-	flagParser    = flags.NewParser(nil, flags.HelpFlag|flags.PassDoubleDash)
-	logOpts       = &logOptions{}
-	logLevel      zap.AtomicLevel
-	listenOpts    = &listenOptions{}
-	restoreLogger = func() {}
-	flushTraces   io.Closer
-	httpHandler   http.Handler
-	serviceHooks  []func(s *grpc.Server)
+	AppName         = "server"
+	flagParser      = flags.NewParser(nil, flags.HelpFlag|flags.PassDoubleDash)
+	logOpts         = &logOptions{}
+	logLevel        zap.AtomicLevel
+	listenOpts      = &listenOptions{}
+	restoreLogger   = func() {}
+	flushTraces     io.Closer
+	httpHandler     http.Handler
+	serviceHooks    []func(s *grpc.Server)
+	startupCallback func(Info)
+
+	debugSetup   = false
+	tracingSetup = false
 )
 
 type logOptions struct {
@@ -92,6 +103,9 @@ func Setup() {
 }
 
 func setup() error {
+	if listenOpts.ShutdownGracePeriod == 0 {
+		listenOpts.ShutdownGracePeriod = time.Second
+	}
 	if err := setupLogging(); err != nil {
 		return fmt.Errorf("setup logging: %w", err)
 	}
@@ -121,6 +135,10 @@ func setupLogging() error {
 }
 
 func setupTracing() error {
+	if tracingSetup {
+		return nil
+	}
+
 	jcfg, err := jaegercfg.FromEnv()
 	if err != nil {
 		return fmt.Errorf("config: %w", err)
@@ -138,12 +156,17 @@ func setupTracing() error {
 	}
 	opentracing.SetGlobalTracer(tracer)
 	flushTraces = closer
+	tracingSetup = true
 	return nil
 }
 
 func setupDebug() {
+	if debugSetup {
+		return
+	}
 	http.Handle("/metrics", promhttp.Handler())
 	http.Handle("/zap", logLevel)
+	debugSetup = true
 }
 
 // AddService registers a gRPC server to be run by the RPC server.  It is intended to be used like:
@@ -160,6 +183,14 @@ func SetHTTPHandler(h http.Handler) {
 		panic("attempt to add an http handler with one already registered")
 	}
 	httpHandler = h
+}
+
+// SetStartupCallback registers a function to be called when the server starts.
+func SetStartupCallback(cb func(Info)) {
+	if startupCallback != nil {
+		panic("attempt to add a startup callback with one already registered")
+	}
+	startupCallback = cb
 }
 
 // isNotMonitoring returns true if the request is not monitoring.  (This is to suppress tracing of
@@ -252,11 +283,15 @@ func listenAndServe(stopCh chan string) error {
 	}
 	defer grpcListener.Close()
 
-	httpListener, err := net.Listen("tcp", listenOpts.HTTPAddress)
-	if err != nil {
-		return fmt.Errorf("listen on http port: %w", err)
+	var httpListener net.Listener
+	if httpHandler != nil {
+		var err error
+		httpListener, err = net.Listen("tcp", listenOpts.HTTPAddress)
+		if err != nil {
+			return fmt.Errorf("listen on http port: %w", err)
+		}
+		defer httpListener.Close()
 	}
-	defer httpListener.Close()
 
 	doneCh := make(chan error)
 	debugServer := &http.Server{
@@ -312,6 +347,17 @@ func listenAndServe(stopCh chan string) error {
 		}()
 	}
 
+	if startupCallback != nil {
+		info := Info{
+			DebugAddress: debugListener.Addr().String(),
+			GRPCAddress:  grpcListener.Addr().String(),
+		}
+		if httpHandler != nil {
+			info.HTTPAddress = httpListener.Addr().String()
+		}
+		go startupCallback(info)
+	}
+
 	select {
 	case reason := <-stopCh:
 		zap.L().Info("shutdown requested", zap.String("reason", reason), zap.Int("servers_remaining", servers))
@@ -343,14 +389,21 @@ func listenAndServe(stopCh chan string) error {
 	return nil
 }
 
+var terminationLog = "/dev/termination-log"
+
 // ListenAndServe starts all servers.  SIGTERM or SIGINT will gracefully drain connections.  When
 // all servers have exited, we exit the program.
 func ListenAndServe() {
 	stopCh := make(chan string)
 	http.HandleFunc("/quitquitquit", func(w http.ResponseWriter, req *http.Request) {
-		stopCh <- "quitquitquit"
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("bye")) // nolint
+		ctx := req.Context()
+		select {
+		case stopCh <- "quitquitquit":
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("bye"))
+		case <-ctx.Done():
+			http.Error(w, fmt.Sprintf("%v", ctx.Err()), http.StatusInternalServerError)
+		}
 	})
 
 	sigCh := make(chan os.Signal)
@@ -371,8 +424,9 @@ func ListenAndServe() {
 		termMsg = []byte(fmt.Sprintf("error during shutdown: %v", err))
 	}
 
-	// nolint: errcheck
-	ioutil.WriteFile("/dev/termination-log", termMsg, 0666)
+	if err := ioutil.WriteFile(terminationLog, termMsg, 0666); err != nil {
+		zap.L().Info("failed to write termination log", zap.String("path", terminationLog), zap.Error(err))
+	}
 
 	if flushTraces != nil {
 		flushTraces.Close()
