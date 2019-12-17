@@ -15,6 +15,35 @@ resources:
           password: ((registry.password))
 
 jobs:
+    - name: tests
+      public: true
+      plan:
+          - get: jsso-git
+            trigger: true
+          - task: test
+            config:
+                platform: linux
+                image_resource:
+                    type: registry-image
+                    source:
+                        repository: l.gcr.io/google/bazel
+                inputs:
+                    - name: jsso-git
+                run:
+                    dir: jsso-git
+                    path: bazel
+                    args:
+                        - "--output_user_root=../build-root"
+                        - "--output_base=../build-output"
+                        - "test"
+                        - "--disk_cache=../disk-cache"
+                        - "--repository_cache=../repository-cache"
+                        - "--"
+                        - "..."
+                caches:
+                    - path: disk-cache
+                    - path: repository-cache
+
     - name: envoy-plugin
       public: true
       plan:
