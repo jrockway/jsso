@@ -62,6 +62,9 @@ func (s *Server) LoadPolicy(ctx context.Context, code string) error {
 // indicates a technical problem evaluting the policy.  The result is only valid if an error did not
 // occur.
 func (s *Server) Eval(ctx context.Context, input interface{}) (bool, error) {
+	sp, ctx := opentracing.StartSpanFromContext(ctx, "evaluate query")
+	defer sp.Finish()
+
 	s.queryMu.Lock()
 	q := s.query
 	hasQuery := s.hasQuery
@@ -69,6 +72,7 @@ func (s *Server) Eval(ctx context.Context, input interface{}) (bool, error) {
 	if !hasQuery {
 		return false, errors.New("no policy loaded")
 	}
+
 	rs, err := q.Eval(ctx, rego.EvalInput(input))
 	if err != nil {
 		return false, fmt.Errorf("eval query: %w", err)
@@ -79,10 +83,12 @@ func (s *Server) Eval(ctx context.Context, input interface{}) (bool, error) {
 	if len(rs) > 1 {
 		return false, fmt.Errorf("too many results: got %d, want 1", len(rs))
 	}
+
 	expressions := rs[0].Expressions
 	if got, want := len(expressions), 1; got != want {
 		return false, fmt.Errorf("unexpected expression count: got %d, want %d", got, want)
 	}
+
 	switch decision := expressions[0].Value.(type) {
 	case bool:
 		return decision, nil
