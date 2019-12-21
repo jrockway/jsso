@@ -94,8 +94,8 @@ def go_repositories():
     go_repository(
         name = "com_github_gogo_protobuf",
         importpath = "github.com/gogo/protobuf",
-        sum = "h1:/s5zKNz0uPFCZ5hddgPdo2TK2TVrUNMn0OOX8/aZMTE=",
-        version = "v1.2.1",
+        sum = "h1:G8O7TerXerS4F6sx9OV7/nRfJdnXgHZu/S/7F2SN+UE=",
+        version = "v1.3.0",
     )
     go_repository(
         name = "com_github_golang_glog",
@@ -172,8 +172,8 @@ def go_repositories():
     go_repository(
         name = "com_github_kisielk_errcheck",
         importpath = "github.com/kisielk/errcheck",
-        sum = "h1:ZqfnKyx9KGpRcW04j5nnPDgRgoXUeLh2YFBeFzphcA0=",
-        version = "v1.1.0",
+        sum = "h1:reN85Pxc5larApoH1keMBiu2GWtPqXQ1nc9gx+jOU+E=",
+        version = "v1.2.0",
     )
     go_repository(
         name = "com_github_kisielk_gotool",
@@ -184,8 +184,8 @@ def go_repositories():
     go_repository(
         name = "com_github_konsorten_go_windows_terminal_sequences",
         importpath = "github.com/konsorten/go-windows-terminal-sequences",
-        sum = "h1:mweAR1A6xJ3oS2pRaGiHgQ4OO8tzTaLawm8vnODuwDk=",
-        version = "v1.0.1",
+        sum = "h1:DB17ag19krx9CFsz4o3enTrPXyIXCl+2iCXH/aMAp9s=",
+        version = "v1.0.2",
     )
     go_repository(
         name = "com_github_kr_logfmt",
@@ -418,8 +418,8 @@ def go_repositories():
     go_repository(
         name = "org_golang_x_text",
         importpath = "golang.org/x/text",
-        sum = "h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=",
-        version = "v0.3.0",
+        sum = "h1:tW2bmiBqwgJj/UpqtC8EpXEZVYOwU0yG4iWbprSVAcs=",
+        version = "v0.3.2",
     )
     go_repository(
         name = "org_golang_x_tools",
@@ -456,4 +456,112 @@ def go_repositories():
         importpath = "go.uber.org/zap",
         sum = "h1:nR6NoDBgAf67s68NhaXbsojM+2gxp3S1hWkHDl27pVU=",
         version = "v1.13.0",
+    )
+    go_repository(
+        name = "com_github_cespare_xxhash",
+        importpath = "github.com/cespare/xxhash",
+        sum = "h1:a6HrQnmkObjyL+Gs60czilIUGqrzKutQD6XZog3p+ko=",
+        version = "v1.1.0",
+    )
+    go_repository(
+        name = "com_github_fsnotify_fsnotify",
+        importpath = "github.com/fsnotify/fsnotify",
+        sum = "h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=",
+        version = "v1.4.7",
+    )
+    go_repository(
+        name = "com_github_ghodss_yaml",
+        importpath = "github.com/ghodss/yaml",
+        sum = "h1:bRzFpEzvausOAt4va+I/22BZ1vXDtERngp0BNYDKej0=",
+        version = "v0.0.0-20180820084758-c7ce16629ff4",
+    )
+    go_repository(
+        name = "com_github_gobwas_glob",
+        importpath = "github.com/gobwas/glob",
+        sum = "h1:A4xDbljILXROh+kObIiy5kIaPYD8e96x1tgBhUI5J+Y=",
+        version = "v0.2.3",
+    )
+    go_repository(
+        name = "com_github_gorilla_mux",
+        importpath = "github.com/gorilla/mux",
+        sum = "h1:hsoQua/9DqRrTqNB9E0hbJLp1DctU92ZmRo3cF6reyE=",
+        version = "v0.0.0-20181024020800-521ea7b17d02",
+    )
+    go_repository(
+        name = "com_github_inconshreveable_mousetrap",
+        importpath = "github.com/inconshreveable/mousetrap",
+        sum = "h1:Z8tu5sraLXCXIcARxBp/8cbvlwVa7Z1NHg9XEKhtSvM=",
+        version = "v1.0.0",
+    )
+    go_repository(
+        name = "com_github_mattn_go_runewidth",
+        importpath = "github.com/mattn/go-runewidth",
+        sum = "h1:0E3wlIAcvD6zt/8UJgTd4JMT6UQhsnYyjCIqllyVLbs=",
+        version = "v0.0.0-20181025052659-b20a3daf6a39",
+    )
+    go_repository(
+        name = "com_github_mna_pigeon",
+        importpath = "github.com/mna/pigeon",
+        sum = "h1:yIn3M+2nBaa+i9jUVoO+YmFjdczHt/BgReCj4EJOYOo=",
+        version = "v0.0.0-20180808201053-bb0192cfc2ae",
+    )
+    go_repository(
+        name = "com_github_olekukonko_tablewriter",
+        importpath = "github.com/olekukonko/tablewriter",
+        sum = "h1:b3iUnf1v+ppJiOfNX4yxxqfWKMQPZR5yoh8urCTFX88=",
+        version = "v0.0.1",
+    )
+    go_repository(
+        name = "com_github_oneofone_xxhash",
+        importpath = "github.com/OneOfOne/xxhash",
+        sum = "h1:wS8NNaIgtzapuArKIAjsyXtEN/IUjQkbw90xszUdS40=",
+        version = "v1.2.3",
+    )
+    go_repository(
+        name = "com_github_open_policy_agent_opa",
+        importpath = "github.com/open-policy-agent/opa",
+        sum = "h1:VGyBInxJkrbZ2yNBGygnevnQFJgf/18ZbohvH7Xu9dw=",
+        version = "v0.16.0",
+    )
+    go_repository(
+        name = "com_github_peterh_liner",
+        importpath = "github.com/peterh/liner",
+        sum = "h1:zapSxdmZYY6vJWXFKLQ+MkI+agc+HQyfrCGowDSHiKs=",
+        version = "v0.0.0-20170211195444-bf27d3ba8e1d",
+    )
+    go_repository(
+        name = "com_github_rcrowley_go_metrics",
+        importpath = "github.com/rcrowley/go-metrics",
+        sum = "h1:9ZKAASQSHhDYGoxY8uLVpewe1GDZ2vu2Tr/vTdVAkFQ=",
+        version = "v0.0.0-20181016184325-3113b8401b8a",
+    )
+    go_repository(
+        name = "com_github_spaolacci_murmur3",
+        importpath = "github.com/spaolacci/murmur3",
+        sum = "h1:qLC7fQah7D6K1B0ujays3HV9gkFtllcxhzImRR7ArPQ=",
+        version = "v0.0.0-20180118202830-f09979ecbc72",
+    )
+    go_repository(
+        name = "com_github_spf13_cobra",
+        importpath = "github.com/spf13/cobra",
+        sum = "h1:BgSbPgT2Zu8hDen1jJDGLWO8voaSRVrwsk18Q/uSh5M=",
+        version = "v0.0.0-20181021141114-fe5e611709b0",
+    )
+    go_repository(
+        name = "com_github_spf13_pflag",
+        importpath = "github.com/spf13/pflag",
+        sum = "h1:EmIGPbInxgMLEZd2f2MZwv0lCYiAv93kztj4caWSUZA=",
+        version = "v0.0.0-20181024212040-082b515c9490",
+    )
+    go_repository(
+        name = "com_github_yashtewari_glob_intersection",
+        importpath = "github.com/yashtewari/glob-intersection",
+        sum = "h1:vVRagRXf67ESqAb72hG2C/ZwI8NtJF2u2V76EsuOHGY=",
+        version = "v0.0.0-20180916065949-5c77d914dd0b",
+    )
+    go_repository(
+        name = "in_gopkg_fsnotify_v1",
+        importpath = "gopkg.in/fsnotify.v1",
+        sum = "h1:xOHLXZwVvI9hhs+cLKq5+I5onOuwQLhQwiu63xxlHs4=",
+        version = "v1.4.7",
     )
