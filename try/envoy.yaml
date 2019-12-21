@@ -11,7 +11,7 @@ static_resources:
           address:
               socket_address:
                   protocol: TCP
-                  address: 0.0.0.0
+                  address: 127.0.0.1
                   port_value: 10000
           filter_chains:
               - filters:
@@ -37,7 +37,7 @@ static_resources:
                                     grpc_service:
                                         envoy_grpc:
                                             cluster_name: grpc
-                                        timeout: 1s
+                                        timeout: 0.1s
                               - name: envoy.router
     clusters:
         - name: debug

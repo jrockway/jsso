@@ -6,10 +6,12 @@ go_library(
     importpath = "github.com/jrockway/jsso/lib/authserver",
     visibility = ["//visibility:public"],
     deps = [
-        "@com_github_envoyproxy_go_control_plane//envoy/api/v2/core:go_default_library",
+        "//lib/auth:go_default_library",
         "@com_github_envoyproxy_go_control_plane//envoy/service/auth/v2:go_default_library",
+        "@com_github_envoyproxy_go_control_plane//envoy/type:go_default_library",
         "@go_googleapis//google/rpc:status_go_proto",
         "@org_golang_google_grpc//codes:go_default_library",
+        "@org_golang_google_grpc//status:go_default_library",
         "@org_uber_go_zap//:go_default_library",
     ],
 )

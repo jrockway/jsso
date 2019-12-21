@@ -4,33 +4,61 @@ package authserver
 import (
 	"context"
 
-	envoycore "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	auth "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
+	envoyauth "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
+	envoy_type "github.com/envoyproxy/go-control-plane/envoy/type"
+	"github.com/jrockway/jsso/lib/auth"
 	"go.uber.org/zap"
-	"google.golang.org/genproto/googleapis/rpc/status"
+	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-type Server struct{}
+type Server struct {
+	PolicyServer *auth.Server
+}
 
-// Check authorizes a request.
-func (s *Server) Check(ctx context.Context, req *auth.CheckRequest) (*auth.CheckResponse, error) {
-	zap.L().Debug("check", zap.Reflect("request", req))
-	return &auth.CheckResponse{
-		Status: &status.Status{
+func allow() *envoyauth.CheckResponse {
+	return &envoyauth.CheckResponse{
+		Status: &rpcstatus.Status{
 			Code: int32(codes.OK),
 		},
-		HttpResponse: &auth.CheckResponse_OkResponse{
-			OkResponse: &auth.OkHttpResponse{
-				Headers: []*envoycore.HeaderValueOption{
-					{
-						Header: &envoycore.HeaderValue{
-							Key:   "x-jsso-authorized",
-							Value: "true",
-						},
-					},
+		HttpResponse: &envoyauth.CheckResponse_OkResponse{
+			OkResponse: &envoyauth.OkHttpResponse{},
+		},
+	}
+}
+
+func deny(msg string) *envoyauth.CheckResponse {
+	return &envoyauth.CheckResponse{
+		Status: &rpcstatus.Status{
+			Code: int32(codes.PermissionDenied),
+		},
+		HttpResponse: &envoyauth.CheckResponse_DeniedResponse{
+			DeniedResponse: &envoyauth.DeniedHttpResponse{
+				Status: &envoy_type.HttpStatus{
+					Code: envoy_type.StatusCode_Forbidden,
 				},
+				Body: msg,
 			},
 		},
-	}, nil
+	}
+}
+
+// Check envoyauthorizes a request.
+func (s *Server) Check(ctx context.Context, req *envoyauth.CheckRequest) (*envoyauth.CheckResponse, error) {
+	id := req.GetAttributes().GetRequest().GetHttp().GetHeaders()["x-request-id"]
+	logger := zap.L().Named("Check").With(zap.String("x-request-id", id))
+	logger.Debug("check", zap.Reflect("request", req))
+
+	ok, err := s.PolicyServer.Eval(ctx, req)
+	if err != nil {
+		logger.Error("eval policy", zap.Error(err))
+		return deny(err.Error()), status.Error(codes.Internal, err.Error())
+	}
+
+	logger.Debug("access checked", zap.Bool("allowed", ok))
+	if ok {
+		return allow(), nil
+	}
+	return deny("Access denied: policy requirements not met."), nil
 }
