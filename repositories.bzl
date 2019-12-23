@@ -40,8 +40,8 @@ def go_repositories():
     go_repository(
         name = "com_github_cespare_xxhash_v2",
         importpath = "github.com/cespare/xxhash/v2",
-        sum = "h1:yTUvW7Vhb89inJ+8irsUqiWjh8iT6sQPZiQzI6ReGkA=",
-        version = "v2.1.0",
+        sum = "h1:6MnRN8NT7+YBpUIWxHtefFZOKTAPgGjpQSxqLNn0+qY=",
+        version = "v2.1.1",
     )
     go_repository(
         name = "com_github_client9_misspell",
@@ -118,8 +118,8 @@ def go_repositories():
     go_repository(
         name = "com_github_google_go_cmp",
         importpath = "github.com/google/go-cmp",
-        sum = "h1:crn/baboCvb5fXaQ0IJ1SGTsTVrWpDsCWC8EGETZijY=",
-        version = "v0.3.0",
+        sum = "h1:Xye71clBPdm5HgqGwUkwhbynsUJZhDbS20FvLhQ2izg=",
+        version = "v0.3.1",
     )
     go_repository(
         name = "com_github_google_gofuzz",
@@ -160,8 +160,8 @@ def go_repositories():
     go_repository(
         name = "com_github_json_iterator_go",
         importpath = "github.com/json-iterator/go",
-        sum = "h1:KfgG9LzI+pYjr4xvmz/5H4FXjokeP+rlHLhv3iH62Fo=",
-        version = "v1.1.7",
+        sum = "h1:QiWkFLKq0T7mpzwOTu6BzNDbfTE8OLrYhVKYMLF46Ok=",
+        version = "v1.1.8",
     )
     go_repository(
         name = "com_github_julienschmidt_httprouter",
@@ -262,14 +262,14 @@ def go_repositories():
     go_repository(
         name = "com_github_prometheus_client_golang",
         importpath = "github.com/prometheus/client_golang",
-        sum = "h1:JnMpQc6ppsNgw9QPAGF6Dod479itz7lvlsMzzNayLOI=",
-        version = "v1.2.1",
+        sum = "h1:miYCvYqFXtl/J9FIy8eNpBfYthAEFg+Ys0XyUVEcDsc=",
+        version = "v1.3.0",
     )
     go_repository(
         name = "com_github_prometheus_client_model",
         importpath = "github.com/prometheus/client_model",
-        sum = "h1:gQz4mCbXsO+nc9n1hCxHcGA3Zx3Eo+UHZoInFGUIXNM=",
-        version = "v0.0.0-20190812154241-14fe0d1b01d4",
+        sum = "h1:ElTg5tNp4DqfV7UQjDqv2+RJlNzsDtvNAWccbItceIE=",
+        version = "v0.1.0",
     )
     go_repository(
         name = "com_github_prometheus_common",
@@ -280,8 +280,8 @@ def go_repositories():
     go_repository(
         name = "com_github_prometheus_procfs",
         importpath = "github.com/prometheus/procfs",
-        sum = "h1:3+auTFlqw+ZaQYJARz6ArODtkaIwtvBTx3N2NehQlL8=",
-        version = "v0.0.5",
+        sum = "h1:+fpWZdT24pJBiqJdAwYBjPSk+5YmQzYNPYzQsdzLkt8=",
+        version = "v0.0.8",
     )
     go_repository(
         name = "com_github_rogpeppe_go_internal",
@@ -310,8 +310,8 @@ def go_repositories():
     go_repository(
         name = "com_github_uber_jaeger_client_go",
         importpath = "github.com/uber/jaeger-client-go",
-        sum = "h1:HgqpYBng0n7tLJIlyT4kPCIv5XgCsF+kai1NnnrJzEU=",
-        version = "v2.20.1+incompatible",
+        sum = "h1:oozboeZmWz+tyh3VZttJWlF3K73mHgbokieceqKccLo=",
+        version = "v2.21.1+incompatible",
     )
     go_repository(
         name = "com_github_uber_jaeger_lib",
@@ -406,14 +406,14 @@ def go_repositories():
     go_repository(
         name = "org_golang_x_sync",
         importpath = "golang.org/x/sync",
-        sum = "h1:8gQV6CLnAEikrhgkHFbMAEhagSSnXWGV915qUMm9mrU=",
-        version = "v0.0.0-20190423024810-112230192c58",
+        sum = "h1:vcxGaoTs7kV8m5Np9uUNQin4BrLOthgV7252N8V+FwY=",
+        version = "v0.0.0-20190911185100-cd5d95a43a6e",
     )
     go_repository(
         name = "org_golang_x_sys",
         importpath = "golang.org/x/sys",
-        sum = "h1:/XfQ9z7ib8eEJX2hdgFTZJ/ntt0swNk5oYBziWeTCvY=",
-        version = "v0.0.0-20191010194322-b09406accb47",
+        sum = "h1:68K/z8GLUxV76xGSqwTWw2gyk/jwn79LUL43rES2g8o=",
+        version = "v0.0.0-20191220142924-d4481acd189f",
     )
     go_repository(
         name = "org_golang_x_text",
@@ -564,4 +564,10 @@ def go_repositories():
         importpath = "gopkg.in/fsnotify.v1",
         sum = "h1:xOHLXZwVvI9hhs+cLKq5+I5onOuwQLhQwiu63xxlHs4=",
         version = "v1.4.7",
+    )
+    go_repository(
+        name = "com_github_jrockway_opinionated_server",
+        importpath = "github.com/jrockway/opinionated-server",
+        sum = "h1:aa3zbQ0u44eAJOm76/mxzf5tdtEr6plmvPZTcQFyzy0=",
+        version = "v0.0.1",
     )

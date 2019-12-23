@@ -9,8 +9,8 @@ go_library(
     deps = [
         "//lib/auth:go_default_library",
         "//lib/authserver:go_default_library",
-        "//lib/server:go_default_library",
         "@com_github_envoyproxy_go_control_plane//envoy/service/auth/v2:go_default_library",
+        "@com_github_jrockway_opinionated_server//server:go_default_library",
         "@org_golang_google_grpc//:go_default_library",
         "@org_uber_go_zap//:go_default_library",
     ],

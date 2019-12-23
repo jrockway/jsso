@@ -8,7 +8,7 @@ import (
 	envoy_auth "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 	"github.com/jrockway/jsso/lib/auth"
 	"github.com/jrockway/jsso/lib/authserver"
-	"github.com/jrockway/jsso/lib/server"
+	"github.com/jrockway/opinionated-server/server"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
