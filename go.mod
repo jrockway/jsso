@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473
-	github.com/jrockway/opinionated-server v0.0.1
+	github.com/jrockway/opinionated-server v0.0.2-0.20200124152801-feca93548047
 	github.com/open-policy-agent/opa v0.16.0
 	github.com/opentracing/opentracing-go v1.1.0
 	go.uber.org/zap v1.13.0
