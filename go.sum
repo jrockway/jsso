@@ -75,6 +75,8 @@ github.com/jrockway/opinionated-server v0.0.2-0.20200124152801-feca93548047 h1:8
 github.com/jrockway/opinionated-server v0.0.2-0.20200124152801-feca93548047/go.mod h1:oKjZ8S0G/FPIHFCrc7EpyCH9Eym8xZ0uOiqt0HIuBs8=
 github.com/jrockway/opinionated-server v0.0.2-0.20200126192814-117789d4b0ee h1:jSisplgs/5I0n9/bmOVsXHdbK6eINbLur+IMzH1nSOo=
 github.com/jrockway/opinionated-server v0.0.2-0.20200126192814-117789d4b0ee/go.mod h1:Bi66z8LvK+rawOhpxrrq3luUOkfVy2T9GcQP5sU+SFc=
+github.com/jrockway/opinionated-server v0.0.2-0.20200126204439-cc7b7906b6f4 h1:XFENmnpeSPDap32+9VN7SZ4UA4O7MBcQvHsZPCtq3xU=
+github.com/jrockway/opinionated-server v0.0.2-0.20200126204439-cc7b7906b6f4/go.mod h1:Bi66z8LvK+rawOhpxrrq3luUOkfVy2T9GcQP5sU+SFc=
 github.com/json-iterator/go v1.1.6/go.mod h1:+SdeFBvtyEkXs7REEP0seUULqWtbJapLOCVDaaPEHmU=
 github.com/json-iterator/go v1.1.8/go.mod h1:KdQUCv79m/52Kvf8AW2vK1V8akMuk1QjK/uOdHXbAo4=
 github.com/julienschmidt/httprouter v1.2.0/go.mod h1:SYymIcj16QtmaHHD7aYtjjsJG7VTCxuUUipMqKk8s4w=

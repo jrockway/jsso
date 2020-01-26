@@ -310,8 +310,8 @@ go_repository(
 go_repository(
     name = "com_github_jrockway_opinionated_server",
     importpath = "github.com/jrockway/opinionated-server",
-    sum = "h1:jSisplgs/5I0n9/bmOVsXHdbK6eINbLur+IMzH1nSOo=",
-    version = "v0.0.2-0.20200126192814-117789d4b0ee",
+    sum = "h1:XFENmnpeSPDap32+9VN7SZ4UA4O7MBcQvHsZPCtq3xU=",
+    version = "v0.0.2-0.20200126204439-cc7b7906b6f4",
 )
 
 go_repository(
