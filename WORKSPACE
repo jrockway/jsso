@@ -43,10 +43,6 @@ load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
 
 protobuf_deps()
 
-load("//:repositories.bzl", "go_repositories")
-
-go_repositories()
-
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
@@ -314,8 +310,8 @@ go_repository(
 go_repository(
     name = "com_github_jrockway_opinionated_server",
     importpath = "github.com/jrockway/opinionated-server",
-    sum = "h1:8eS3Q0vgu0ChT38aOrJVyrH8sg4XFj9+e6SizAVlgQU=",
-    version = "v0.0.2-0.20200124152801-feca93548047",
+    sum = "h1:jSisplgs/5I0n9/bmOVsXHdbK6eINbLur+IMzH1nSOo=",
+    version = "v0.0.2-0.20200126192814-117789d4b0ee",
 )
 
 go_repository(
@@ -664,8 +660,8 @@ go_repository(
 go_repository(
     name = "org_golang_x_lint",
     importpath = "golang.org/x/lint",
-    sum = "h1:5hukYrvBGR8/eNkX5mdUezrA6JiaEZDtJb9Ei+1LlBs=",
-    version = "v0.0.0-20190930215403-16217165b5de",
+    sum = "h1:J5lckAjkw6qYlOZNj90mLYNTEKDvWeuc1yieZ8qUzUE=",
+    version = "v0.0.0-20191125180803-fdd1cda4f05f",
 )
 
 go_repository(
@@ -713,8 +709,8 @@ go_repository(
 go_repository(
     name = "org_golang_x_tools",
     importpath = "golang.org/x/tools",
-    sum = "h1:hKsoRgsbwY1NafxrwTs+k64bikrLBkAgPir1TNCj3Zs=",
-    version = "v0.0.0-20191029190741-b9c20aec41a5",
+    sum = "h1:kDxGY2VmgABOe55qheT/TFqUMtcTHnomIPS1iv3G4Ms=",
+    version = "v0.0.0-20191125144606-a911d9008d1f",
 )
 
 go_repository(
@@ -750,4 +746,11 @@ go_repository(
     importpath = "go.uber.org/zap",
     sum = "h1:nR6NoDBgAf67s68NhaXbsojM+2gxp3S1hWkHDl27pVU=",
     version = "v1.13.0",
+)
+
+go_repository(
+    name = "org_uber_go_automaxprocs",
+    importpath = "go.uber.org/automaxprocs",
+    sum = "h1:II28aZoGdaglS5vVNnspf28lnZpXScxtIozx1lAjdb0=",
+    version = "v1.3.0",
 )
