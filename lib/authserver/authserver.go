@@ -6,6 +6,7 @@ import (
 
 	envoyauth "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
 	envoy_type "github.com/envoyproxy/go-control-plane/envoy/type"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/jrockway/jsso/lib/auth"
 	"go.uber.org/zap"
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
@@ -47,15 +48,13 @@ func deny(msg string) *envoyauth.CheckResponse {
 // Check envoyauthorizes a request.
 func (s *Server) Check(ctx context.Context, req *envoyauth.CheckRequest) (*envoyauth.CheckResponse, error) {
 	id := req.GetAttributes().GetRequest().GetHttp().GetHeaders()["x-request-id"]
-	logger := zap.L().Named("Check").With(zap.String("x-request-id", id))
-	logger.Debug("check", zap.Reflect("request", req))
+	logger := ctxzap.Extract(ctx).With(zap.String("x-request-id", id))
 
 	ok, err := s.PolicyServer.Eval(ctx, req)
 	if err != nil {
 		logger.Error("eval policy", zap.Error(err))
 		return deny(err.Error()), status.Error(codes.Internal, err.Error())
 	}
-
 	logger.Debug("access checked", zap.Bool("allowed", ok))
 	if ok {
 		return allow(), nil
